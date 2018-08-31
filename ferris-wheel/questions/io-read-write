@@ -1,0 +1,5 @@
+The file would not compile for two reasons:
+
+1. The impl block needed a declaration of the generic type T with trait bound io::Read
+2. The return type should have been the type alias io::Result, not Result.
+   the alias is roughly type io::Result<T> = std::result::Result<T, io::Error>
