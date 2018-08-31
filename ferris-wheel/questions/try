@@ -1,0 +1,2 @@
+try must be able to convert to the target Result error type in order to be used.
+Thus, implementing From for Error from both source error types makes it work.
