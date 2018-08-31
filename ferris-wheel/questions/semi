@@ -1,0 +1,4 @@
+Semicolons act as statements, which are expressions with a return value of unit.
+Removing the semicolon returns the result of the expression from the current
+block. The statement without a trailing semicolon must be the last statement
+within the block.
