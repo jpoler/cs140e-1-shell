@@ -1,0 +1,2 @@
+The return value for StrWrapper::inner needed to specify the lifetype of the
+reference it returns.
