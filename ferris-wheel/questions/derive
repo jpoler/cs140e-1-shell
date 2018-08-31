@@ -1,0 +1,5 @@
+The type Duration needed to derive Debug, Copy, and Clone.
+
+I'm not entirely sure that the Copy, Clone derivations are completely necessary,
+but in this case since all of the variants only hold primitive integer types,
+the copy is inexpensive.
