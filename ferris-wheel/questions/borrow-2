@@ -1,0 +1,3 @@
+There can only be one mutable reference to an object at any time. This means
+that either y must not be a reference to x, or the reference must be released
+before obtaining the mutable reference.
