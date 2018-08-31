@@ -1,0 +1,3 @@
+The struct holds a reference to type T with a lifetime of 'a. In order for this
+to work, we need to specify that the type T also has a lifetime of 'a, else we
+cannot guarantee that the reference will be valid.
