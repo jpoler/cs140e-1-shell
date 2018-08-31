@@ -1,0 +1,6 @@
+The adding const before fn is a nightly feature.
+
+It enables compile-time function execution.
+   - https://en.wikipedia.org/wiki/Compile_time_function_execution
+
+This basically means that if a function has known inputs at compile time, the results can be computed and assigned to a const.
