@@ -1,0 +1,5 @@
+The type did not implement copy. Because of this, the assigment to z resulted in
+a move out of y, which is a borrow from x. This is not allowed, since the
+assignment is in essence trying to create two owned references to the value in
+x.
+
