@@ -1,0 +1,7 @@
+In Refwrapper, an explicit lifetime 'a needed to be added, as well as
+specificying that the reference to T has the same lifetime as T.
+
+In RefWrapperWrapper, the trick is to say that the lifetime of the reference to
+RefWrapper has at least a shorter lifetime than T. This also implies that
+RefWrapper lives at least as long as RefWrapperWrapper, so that the reference in
+RefWrapperWrapper will never be invalid.
