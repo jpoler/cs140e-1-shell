@@ -1,0 +1,3 @@
+The changes are basically the same as in lifetimes-3, except that the impl block
+needed to have the lifetimes declared, and RefWrapperWrapper needed to be
+parameterized with those lifetimes.
