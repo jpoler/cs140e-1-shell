@@ -1,0 +1,5 @@
+Which 3 registers for GPIO pin 27?
+
+1. GPIO Function select register 2 - 0x 7E20 0008
+2. GPIO Pin Output Set 0 - 0x 7E20 001C
+3. GPIO Pin Output Clear 0  - 0x 7E20 0028
