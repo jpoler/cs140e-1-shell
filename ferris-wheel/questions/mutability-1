@@ -1,0 +1,2 @@
+References are by default immutable. Making the reference to v a mutable
+reference was all that was necessary.
