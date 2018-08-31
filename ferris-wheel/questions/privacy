@@ -1,0 +1,2 @@
+A function is not visible outside of it's module unless it is a descendant
+module or it is designated to be public.
