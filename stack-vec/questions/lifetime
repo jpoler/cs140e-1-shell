@@ -1,0 +1,3 @@
+If T doesn't have an equal or greater lifetime than 'a, then T could be dropped
+before StackVec's references to T are. This would be extremely unsafe and could
+lead to undefined behavior.

@@ -1,0 +1,3 @@
+Push returns a result because unlike the stdlib Vec, the StackVec has a
+preallocated static amount of memory. Becuse of this, the stackvec could be full
+when push is called, and must be able to fail.

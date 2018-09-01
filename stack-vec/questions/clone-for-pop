@@ -1,0 +1,4 @@
+pop adds the requirement that T is Clone because we don't have the usual
+standard library functions that would allow us to take ownership of the value
+that we stored within the slice like mem::replace(). Instead to pull the object
+out we just decrement StackVec.len and clone the top of the stack and return.
