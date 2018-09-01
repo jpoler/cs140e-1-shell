@@ -1,0 +1,2 @@
+max is a function taking two generic types that have a partial ordering, and
+returns the maximum of the two arguments.
