@@ -1,0 +1,2 @@
+The readable!, writeable!, and readable_writeable! macros just implement the
+traits for each public struct in a DRY manner.

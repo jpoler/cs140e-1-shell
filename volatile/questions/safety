@@ -1,0 +1,6 @@
+The unsafe keyword is basically a contract that the consumer of an unsafe api
+has read the documentation and promises to uphold the prescribed safety
+contract.
+
+For this reason, it makes more sense to make sure that the caller of new upholds
+the contract, rather than later on during a read or write.

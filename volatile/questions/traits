@@ -1,0 +1,5 @@
+1. Using a trait allows multiple traits to provide the inner method since we can
+call each separately with ufcs.
+
+2. Using traits allows code-reuse by implementing both traits on a single
+object, for instance on ReadableWriteable.

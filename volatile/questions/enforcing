@@ -1,0 +1,8 @@
+The type system enforces the constraints that a read cannot be written and vice
+versa.
+
+While inner() will return the inner poiner for ReadVolatile and WriteVolatile,
+using core::ptr::write_volatile to write a ReadVolatile would not be possible
+because the pointer is const. The same goes for reading a WriteVolatile pointer.
+It is returned as a mut pointer, which cannot be passed to
+core::ptr::read_volatile because it expects a const pointer.

@@ -1,0 +1,5 @@
+By restricting construction of a volatile type to it's public new interface, we
+can keep the inner field private, which allows the implementor to tightly
+control which aspects of the pointer are exposed through the interface. Without
+this, the api consumer might be able to do unsafe things like read a write-only
+or vice-versa.
