@@ -1,0 +1,4 @@
+The tests that index into the stackvec both immutably and mutably would fail.
+This is because rust calls deref on the object type before referencing into the
+array. In this case since the slice that deref returns implements index, it all
+just works.
