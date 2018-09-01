@@ -1,0 +1,3 @@
+To get this to work, it is easiest to convert all types to one target type, and
+then make a comparison. In this case, the logical choice is to convert to
+milliseconds because it is the most granular.
