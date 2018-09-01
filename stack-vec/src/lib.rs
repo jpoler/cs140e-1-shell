@@ -1,6 +1,12 @@
 #![cfg_attr(test, feature(inclusive_range_syntax))]
 #![no_std]
 
+use core::{
+    iter::IntoIterator,
+    ops::{Deref, DerefMut},
+    slice::Iter,
+};
+
 #[cfg(test)]
 mod tests;
 
@@ -120,5 +126,34 @@ impl<'a, T: Clone + 'a> StackVec<'a, T> {
     }
 }
 
-// FIXME: Implement `Deref`, `DerefMut`, and `IntoIterator` for `StackVec`.
-// FIXME: Implement IntoIterator` for `&StackVec`.
+impl<'a, T> Deref for StackVec<'a, T> {
+    type Target = [T];
+
+    fn deref(&self) -> &Self::Target {
+        &self.storage[0..self.len]
+    }
+}
+
+impl<'a, T> DerefMut for StackVec<'a, T> {
+    fn deref_mut(&mut self) -> &mut [T] {
+        &mut self.storage[0..self.len]
+    }
+}
+
+impl<'a, T> IntoIterator for StackVec<'a, T> {
+    type Item = &'a T;
+    type IntoIter = Iter<'a, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.storage[0..self.len].into_iter()
+    }
+}
+
+impl<'a, T> IntoIterator for &'a StackVec<'a, T> {
+    type Item = &'a T;
+    type IntoIter = Iter<'a, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        (*self).storage[0..self.len].into_iter()
+    }
+}
