@@ -1,0 +1,6 @@
+UniqueVolatile exists because it allows a pointer to be treated in essentially
+the same way as an owned value. This allows the object to be send + sync.
+
+This also provides strong aliasing guarantees. This means that the underlying T
+that UniqueVolatile points to will only be modified through a unique alias to
+the object.
