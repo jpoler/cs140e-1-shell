@@ -1,0 +1,2 @@
+Structopt takes parsers for custom types. These parsers are defined in
+parsers.rs
