@@ -282,7 +282,7 @@ impl<T: io::Read + io::Write> Xmodem<T> {
         match self.read_byte(true)? {
             b if b == EOT => {
                 self.handle_receive_eot()?;
-                return Ok(0 as usize);
+                return Ok(0);
             }
             b if b == SOH => {
                 self.started = true;
