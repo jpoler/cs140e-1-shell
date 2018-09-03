@@ -313,20 +313,17 @@ impl<T: io::Read + io::Write> Xmodem<T> {
         let checksum: u8 = packet_buf.iter().fold(0, |a: u8, b| a.wrapping_add(*b));
         if checksum == self.read_byte(false)? {
             self.write_byte(ACK)?;
+            buf.copy_from_slice(&packet_buf);
+            self.packet += 1;
+            (self.progress)(Progress::Packet(self.packet));
+            Ok(128)
         } else {
             self.write_byte(NAK)?;
-            return Err(io::Error::new(
+            Err(io::Error::new(
                 io::ErrorKind::Interrupted,
                 "invalid checksum",
-            ));
+            ))
         }
-
-        buf.copy_from_slice(&packet_buf);
-
-        self.packet += 1;
-        (self.progress)(Progress::Packet(self.packet));
-
-        Ok(128)
     }
 
     /// Sends (uploads) a single packet to the inner stream using the XMODEM
