@@ -48,7 +48,10 @@ fn test_loop() {
     }
 
     let (tx, rx) = pipe();
-    let tx_thread = std::thread::spawn(move || Xmodem::transmit(&input[..], rx));
+    let tx_thread = std::thread::spawn(move || {
+        let mut rx = rx;
+        Xmodem::transmit(&input[..], &mut rx)
+    });
     let rx_thread = std::thread::spawn(move || {
         let mut output = [0u8; 384];
         Xmodem::receive(tx, &mut output[..]).map(|_| output)
@@ -137,7 +140,10 @@ fn test_can_in_packet_and_checksum() {
     input[0] = CAN;
 
     let (tx, rx) = pipe();
-    let tx_thread = std::thread::spawn(move || Xmodem::transmit(&input[..], rx));
+    let tx_thread = std::thread::spawn(move || {
+        let mut rx = rx;
+        Xmodem::transmit(&input[..], &mut rx)
+    });
     let rx_thread = std::thread::spawn(move || {
         let mut output = [0u8; 256];
         Xmodem::receive(tx, &mut output[..]).map(|_| output)
@@ -155,7 +161,10 @@ fn test_can_in_packet_and_checksum() {
 fn test_transmit_reported_bytes() {
     let (input, mut output) = ([0u8; 50], [0u8; 128]);
     let (tx, rx) = pipe();
-    let tx_thread = std::thread::spawn(move || Xmodem::transmit(&input[..], rx));
+    let tx_thread = std::thread::spawn(move || {
+        let mut rx = rx;
+        Xmodem::transmit(&input[..], &mut rx)
+    });
     let rx_thread = std::thread::spawn(move || Xmodem::receive(tx, &mut output[..]));
     assert_eq!(
         tx_thread.join().expect("tx join okay").expect("tx okay"),
@@ -250,4 +259,30 @@ fn test_eot() {
         .expect("write empty buf for EOT");
 
     assert_eq!(&buffer[..], &[NAK, EOT, NAK, EOT, ACK]);
+}
+
+#[test]
+fn test_io_write() {
+    use std::io::Write;
+
+    let mut input = [0u8; 256];
+    input[0] = CAN;
+
+    let (tx, rx) = pipe();
+    let tx_thread = std::thread::spawn(move || {
+        let rx = rx;
+        let mut writer = XmodemIo::new(rx);
+        writer.write(&input[..])
+    });
+    let rx_thread = std::thread::spawn(move || {
+        let mut output = [0u8; 256];
+        Xmodem::receive(tx, &mut output[..]).map(|_| output)
+    });
+
+    assert_eq!(
+        tx_thread.join().expect("tx join okay").expect("tx okay"),
+        256
+    );
+    let output = rx_thread.join().expect("rx join okay").expect("rx okay");
+    assert_eq!(&input[..], &output[..]);
 }

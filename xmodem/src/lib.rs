@@ -32,7 +32,7 @@ impl Xmodem<()> {
     ///
     /// Returns the number of bytes written to `to`, excluding padding zeroes.
     #[inline]
-    pub fn transmit<R, W>(data: R, to: W) -> io::Result<usize>
+    pub fn transmit<R, W>(data: R, to: &mut W) -> io::Result<usize>
     where
         W: io::Read + io::Write,
         R: io::Read,
@@ -48,36 +48,13 @@ impl Xmodem<()> {
     /// the transmission. See the [`Progress`] enum for more information.
     ///
     /// Returns the number of bytes written to `to`, excluding padding zeroes.
-    pub fn transmit_with_progress<R, W>(mut data: R, to: W, f: ProgressFn) -> io::Result<usize>
+    pub fn transmit_with_progress<R, W>(data: R, to: &mut W, f: ProgressFn) -> io::Result<usize>
     where
         W: io::Read + io::Write,
         R: io::Read,
     {
         let mut transmitter = Xmodem::new_with_progress(to, f);
-        let mut packet = [0u8; 128];
-        let mut written = 0;
-        'next_packet: loop {
-            let n = data.read_max(&mut packet)?;
-            packet[n..].iter_mut().for_each(|b| *b = 0);
-
-            if n == 0 {
-                transmitter.write_packet(&[])?;
-                return Ok(written);
-            }
-
-            for _ in 0..10 {
-                match transmitter.write_packet(&packet) {
-                    Err(ref e) if e.kind() == io::ErrorKind::Interrupted => continue,
-                    Err(e) => return Err(e),
-                    Ok(_) => {
-                        written += n;
-                        continue 'next_packet;
-                    }
-                }
-            }
-
-            return Err(io::Error::new(io::ErrorKind::BrokenPipe, "bad transmit"));
-        }
+        transmitter.transmit_loop(data)
     }
 
     /// Receives `data` from `from` using the XMODEM protocol and writes it into
@@ -109,7 +86,9 @@ impl Xmodem<()> {
                 match receiver.read_packet(&mut packet) {
                     Err(ref e) if e.kind() == io::ErrorKind::Interrupted => continue,
                     Err(e) => return Err(e),
-                    Ok(0) => break 'next_packet,
+                    Ok(0) => {
+                        break 'next_packet;
+                    }
                     Ok(n) => {
                         received += n;
                         into.write_all(&packet)?;
@@ -152,6 +131,36 @@ impl<T: io::Read + io::Write> Xmodem<T> {
         }
     }
 
+    fn transmit_loop<R>(&mut self, mut data: R) -> io::Result<usize>
+    where
+        R: io::Read,
+    {
+        let mut packet = [0u8; 128];
+        let mut written = 0;
+        'next_packet: loop {
+            let n = data.read_max(&mut packet)?;
+            packet[n..].iter_mut().for_each(|b| *b = 0);
+
+            if n == 0 {
+                self.write_packet(&[])?;
+                return Ok(written);
+            }
+
+            for _ in 0..10 {
+                match self.write_packet(&packet) {
+                    Err(ref e) if e.kind() == io::ErrorKind::Interrupted => continue,
+                    Err(e) => return Err(e),
+                    Ok(_) => {
+                        written += n;
+                        continue 'next_packet;
+                    }
+                }
+            }
+
+            return Err(io::Error::new(io::ErrorKind::BrokenPipe, "bad transmit"));
+        }
+    }
+
     /// Reads a single byte from the inner I/O stream. If `abort_on_can` is
     /// `true`, an error of `ConnectionAborted` is returned if the read byte is
     /// `CAN`.
@@ -162,7 +171,7 @@ impl<T: io::Read + io::Write> Xmodem<T> {
     /// `abort_on_can` is `true` and the read byte is `CAN`.
     fn read_byte(&mut self, abort_on_can: bool) -> io::Result<u8> {
         let mut buf = [0u8; 1];
-        self.inner.read_exact(&mut buf)?;
+        self.inner.read_exact(&mut buf).unwrap();
 
         let byte = buf[0];
         if abort_on_can && byte == CAN {
@@ -277,6 +286,7 @@ impl<T: io::Read + io::Write> Xmodem<T> {
 
         if !self.started {
             self.write_byte(NAK)?;
+            self.flush()?;
         }
 
         match self.read_byte(true)? {
@@ -285,8 +295,10 @@ impl<T: io::Read + io::Write> Xmodem<T> {
                 return Ok(0);
             }
             b if b == SOH => {
-                self.started = true;
-                (self.progress)(Progress::Started)
+                if !self.started {
+                    (self.progress)(Progress::Started);
+                    self.started = true;
+                }
             }
             _ => {
                 self.write_byte(CAN)?;
@@ -411,5 +423,71 @@ impl<T: io::Read + io::Write> Xmodem<T> {
     /// errors or EOF being reached.
     pub fn flush(&mut self) -> io::Result<()> {
         self.inner.flush()
+    }
+}
+
+enum TransmitState {
+    InProgress,
+    Done,
+}
+
+pub struct XmodemIo<W> {
+    io: W,
+    state: TransmitState,
+}
+
+impl<T> XmodemIo<T>
+where
+    T: io::Read + io::Write,
+{
+    pub fn new(io: T) -> XmodemIo<T> {
+        XmodemIo {
+            io,
+            state: TransmitState::InProgress,
+        }
+    }
+}
+
+impl<T> io::Write for XmodemIo<T>
+where
+    T: io::Read + io::Write,
+{
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        fn progress(progress: Progress) {
+            eprintln!("progress: {:?}", progress)
+        }
+
+        match self.state {
+            TransmitState::InProgress => {
+                let n = Xmodem::transmit_with_progress(buf, &mut self.io, progress)?;
+                self.state = TransmitState::Done;
+                Ok(n)
+            }
+            TransmitState::Done => Ok(0),
+        }
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
+}
+
+impl<T> io::Read for XmodemIo<T>
+where
+    T: io::Read + io::Write,
+{
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        fn progress(progress: Progress) {
+            eprintln!("progress: {:?}", progress)
+        }
+
+        match self.state {
+            TransmitState::InProgress => {
+                let n = Xmodem::receive_with_progress(&mut self.io, buf, progress)?;
+                self.state = TransmitState::Done;
+                Ok(n)
+            }
+            TransmitState::Done => Ok(0),
+        }
     }
 }
