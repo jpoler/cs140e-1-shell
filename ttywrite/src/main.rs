@@ -95,18 +95,25 @@ struct Tty {
 
 impl Tty {
     fn read(self) -> io::Result<()> {
-        let mut writer: Box<io::Write> = if let Some(pathbuf) = self.input {
-            Box::new(File::create(pathbuf)?)
+        let mut file;
+        let mut stdout;
+        let mut serial;
+        let mut xmodem;
+
+        let mut reader: &mut io::Read = if self.raw {
+            serial = self.serial;
+            &mut serial
         } else {
-            Box::new(io::stdout())
+            xmodem = XmodemIo::new(self.serial);
+            &mut xmodem
         };
 
-        // using boxes here is probably quite bad for performance since we have
-        // pointer indirection every time XmodemIo calls 'self'.
-        let mut reader: Box<io::Read> = if self.raw {
-            Box::new(self.serial)
+        let mut writer: &mut io::Write = if let Some(pathbuf) = self.input {
+            file = File::create(pathbuf)?;
+            &mut file
         } else {
-            Box::new(XmodemIo::new(self.serial))
+            stdout = io::stdout();
+            &mut stdout
         };
 
         io::copy(&mut reader, &mut writer)?;
@@ -114,16 +121,25 @@ impl Tty {
     }
 
     fn write(self) -> io::Result<()> {
-        let mut writer: Box<io::Write> = if self.raw {
-            Box::new(self.serial)
+        let mut file;
+        let mut stdin;
+        let mut serial;
+        let mut xmodem;
+
+        let mut reader: &mut io::Read = if let Some(pathbuf) = self.input {
+            file = File::create(pathbuf)?;
+            &mut file
         } else {
-            Box::new(XmodemIo::new(self.serial))
+            stdin = io::stdin();
+            &mut stdin
         };
 
-        let mut reader: Box<io::Read> = if let Some(pathbuf) = self.input {
-            Box::new(File::open(pathbuf)?)
+        let mut writer: &mut io::Write = if self.raw {
+            serial = self.serial;
+            &mut serial
         } else {
-            Box::new(io::stdin())
+            xmodem = XmodemIo::new(self.serial);
+            &mut xmodem
         };
 
         io::copy(&mut reader, &mut writer)?;
