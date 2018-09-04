@@ -1,0 +1,7 @@
+Testing is harder because we basically need to write a 'ttyread' program that
+will implement the other side of the xmodem protocol. This is slightly annoying,
+but I have actually added the code to do so, and added a new script
+test_xmodem.sh that tests the xmodem protocol. The tests pass. The one gotcha
+was that the socat command was set up to create the ttys as unidirection (input
+-> output), so I was looking at timeouts of the initial NAK sent from receiver
+-> sender. After making the link bidirectional everything worked.
