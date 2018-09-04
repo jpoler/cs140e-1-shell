@@ -48,10 +48,7 @@ fn test_loop() {
     }
 
     let (tx, rx) = pipe();
-    let tx_thread = std::thread::spawn(move || {
-        let mut rx = rx;
-        Xmodem::transmit(&input[..], &mut rx)
-    });
+    let tx_thread = std::thread::spawn(move || Xmodem::transmit(&input[..], rx));
     let rx_thread = std::thread::spawn(move || {
         let mut output = [0u8; 384];
         Xmodem::receive(tx, &mut output[..]).map(|_| output)
@@ -140,10 +137,7 @@ fn test_can_in_packet_and_checksum() {
     input[0] = CAN;
 
     let (tx, rx) = pipe();
-    let tx_thread = std::thread::spawn(move || {
-        let mut rx = rx;
-        Xmodem::transmit(&input[..], &mut rx)
-    });
+    let tx_thread = std::thread::spawn(move || Xmodem::transmit(&input[..], rx));
     let rx_thread = std::thread::spawn(move || {
         let mut output = [0u8; 256];
         Xmodem::receive(tx, &mut output[..]).map(|_| output)
@@ -161,10 +155,7 @@ fn test_can_in_packet_and_checksum() {
 fn test_transmit_reported_bytes() {
     let (input, mut output) = ([0u8; 50], [0u8; 128]);
     let (tx, rx) = pipe();
-    let tx_thread = std::thread::spawn(move || {
-        let mut rx = rx;
-        Xmodem::transmit(&input[..], &mut rx)
-    });
+    let tx_thread = std::thread::spawn(move || Xmodem::transmit(&input[..], rx));
     let rx_thread = std::thread::spawn(move || Xmodem::receive(tx, &mut output[..]));
     assert_eq!(
         tx_thread.join().expect("tx join okay").expect("tx okay"),

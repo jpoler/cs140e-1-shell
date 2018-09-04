@@ -32,7 +32,7 @@ impl Xmodem<()> {
     ///
     /// Returns the number of bytes written to `to`, excluding padding zeroes.
     #[inline]
-    pub fn transmit<R, W>(data: R, to: &mut W) -> io::Result<usize>
+    pub fn transmit<R, W>(data: R, to: W) -> io::Result<usize>
     where
         W: io::Read + io::Write,
         R: io::Read,
