@@ -48,13 +48,36 @@ impl Xmodem<()> {
     /// the transmission. See the [`Progress`] enum for more information.
     ///
     /// Returns the number of bytes written to `to`, excluding padding zeroes.
-    pub fn transmit_with_progress<R, W>(data: R, to: &mut W, f: ProgressFn) -> io::Result<usize>
+    pub fn transmit_with_progress<R, W>(mut data: R, to: W, f: ProgressFn) -> io::Result<usize>
     where
         W: io::Read + io::Write,
         R: io::Read,
     {
         let mut transmitter = Xmodem::new_with_progress(to, f);
-        transmitter.transmit_loop(data)
+        let mut packet = [0u8; 128];
+        let mut written = 0;
+        'next_packet: loop {
+            let n = data.read_max(&mut packet)?;
+            packet[n..].iter_mut().for_each(|b| *b = 0);
+
+            if n == 0 {
+                transmitter.write_packet(&[])?;
+                return Ok(written);
+            }
+
+            for _ in 0..10 {
+                match transmitter.write_packet(&packet) {
+                    Err(ref e) if e.kind() == io::ErrorKind::Interrupted => continue,
+                    Err(e) => return Err(e),
+                    Ok(_) => {
+                        written += n;
+                        continue 'next_packet;
+                    }
+                }
+            }
+
+            return Err(io::Error::new(io::ErrorKind::BrokenPipe, "bad transmit"));
+        }
     }
 
     /// Receives `data` from `from` using the XMODEM protocol and writes it into
@@ -128,36 +151,6 @@ impl<T: io::Read + io::Write> Xmodem<T> {
             started: false,
             inner,
             progress: f,
-        }
-    }
-
-    fn transmit_loop<R>(&mut self, mut data: R) -> io::Result<usize>
-    where
-        R: io::Read,
-    {
-        let mut packet = [0u8; 128];
-        let mut written = 0;
-        'next_packet: loop {
-            let n = data.read_max(&mut packet)?;
-            packet[n..].iter_mut().for_each(|b| *b = 0);
-
-            if n == 0 {
-                self.write_packet(&[])?;
-                return Ok(written);
-            }
-
-            for _ in 0..10 {
-                match self.write_packet(&packet) {
-                    Err(ref e) if e.kind() == io::ErrorKind::Interrupted => continue,
-                    Err(e) => return Err(e),
-                    Ok(_) => {
-                        written += n;
-                        continue 'next_packet;
-                    }
-                }
-            }
-
-            return Err(io::Error::new(io::ErrorKind::BrokenPipe, "bad transmit"));
         }
     }
 
