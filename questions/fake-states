@@ -1,0 +1,3 @@
+If we allowed the user to define the start state, we would issue the wrong
+commands to the hardware. The result would be undefined behavior, or worse,
+damage to the hardware.
