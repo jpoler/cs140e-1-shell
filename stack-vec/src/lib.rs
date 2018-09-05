@@ -1,11 +1,9 @@
 #![cfg_attr(test, feature(inclusive_range_syntax))]
 #![no_std]
 
-use core::{
-    iter::IntoIterator,
-    ops::{Deref, DerefMut},
-    slice::Iter,
-};
+use core::iter::IntoIterator;
+use core::ops::{Deref, DerefMut};
+use core::slice::Iter;
 
 #[cfg(test)]
 mod tests;
