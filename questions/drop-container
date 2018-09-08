@@ -1,0 +1,2 @@
+The lock or reference count would not be released. This could lead to deadlock
+or the object's memory never being released.
