@@ -1,4 +1,9 @@
-We implemented fmt::Write on both MiniUart and Console. This eventually translates to bytes being transmitted on the uart tx wire.
+MutexGuard implements Deref, which internally calls self.lock.data.get(). This
+returns a mutable pointer to the inner object, which then is coerced into a
+reference to the object and returned.
+
+We implemented fmt::Write on both MiniUart and Console. This eventually
+translates to bytes being transmitted on the uart tx wire.
 
 Traits have methods that are required and methods that are provided. fmt::Write
 requires write_str, and you get write_char and write_fmt. These two provided
