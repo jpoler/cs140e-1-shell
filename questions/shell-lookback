@@ -1,0 +1,8 @@
+The shell module directly imports the CONSOLE and uses it, along with stack vec.
+
+StackVec provides a convenient way to manage the line-discipline that the shell
+implements. It would need to provide much more flexibility if the shell would
+allow the user to move the cursor within a line.
+
+The CONSOLE uses the MiniUart, type, which in turn uses the timer and gpio
+modules.
