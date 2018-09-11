@@ -17,6 +17,9 @@ const ACK: u8 = 0x06;
 const NAK: u8 = 0x15;
 const CAN: u8 = 0x18;
 
+pub static mut DEBUG_BUFFER: [u8; 1024] = [0; 1024];
+pub static mut DEBUG_BUFFER_OFFSET: usize = 0;
+
 /// Implementation of the XMODEM protocol.
 pub struct Xmodem<R> {
     packet: u8,
@@ -164,9 +167,17 @@ impl<T: io::Read + io::Write> Xmodem<T> {
     /// `abort_on_can` is `true` and the read byte is `CAN`.
     fn read_byte(&mut self, abort_on_can: bool) -> io::Result<u8> {
         let mut buf = [0u8; 1];
-        self.inner.read_exact(&mut buf).unwrap();
+        self.inner.read_exact(&mut buf)?;
 
         let byte = buf[0];
+
+        unsafe {
+            if DEBUG_BUFFER_OFFSET < DEBUG_BUFFER.len() {
+                DEBUG_BUFFER[DEBUG_BUFFER_OFFSET] = byte;
+                DEBUG_BUFFER_OFFSET += 1;
+            }
+        }
+
         if abort_on_can && byte == CAN {
             return Err(io::Error::new(
                 io::ErrorKind::ConnectionAborted,
@@ -279,7 +290,6 @@ impl<T: io::Read + io::Write> Xmodem<T> {
 
         if !self.started {
             self.write_byte(NAK)?;
-            self.flush()?;
         }
 
         match self.read_byte(true)? {
@@ -309,17 +319,14 @@ impl<T: io::Read + io::Write> Xmodem<T> {
         let mut packet_buf: [u8; 128] = [0; 128];
         let n = self.inner.read_max(&mut packet_buf)?;
         if n != 128 {
-            return Err(io::Error::new(
-                io::ErrorKind::UnexpectedEof,
-                format!("short read: {}", n),
-            ));
+            return Err(io::Error::new(io::ErrorKind::UnexpectedEof, "short read"));
         }
 
         let checksum: u8 = packet_buf.iter().fold(0, |a: u8, b| a.wrapping_add(*b));
         if checksum == self.read_byte(false)? {
             self.write_byte(ACK)?;
             buf.copy_from_slice(&packet_buf);
-            self.packet += 1;
+            self.packet = self.packet.wrapping_add(1);
             (self.progress)(Progress::Packet(self.packet));
             Ok(128)
         } else {
@@ -375,11 +382,12 @@ impl<T: io::Read + io::Write> Xmodem<T> {
         } else if buf.len() != 128 {
             return Err(io::Error::new(
                 io::ErrorKind::UnexpectedEof,
-                format!("invalid packet length: {}", buf.len()),
+                "invalid packet length",
             ));
         }
 
         self.write_byte(SOH)?;
+        self.flush()?;
 
         let packet = self.packet;
         self.write_byte(packet)?;
@@ -388,9 +396,11 @@ impl<T: io::Read + io::Write> Xmodem<T> {
         let checksum = buf.iter().fold(0, |a: u8, b| a.wrapping_add(*b));
         self.inner.write_max(&buf[..128])?;
         self.write_byte(checksum)?;
-        match self.read_byte(true)? {
+        let b = self.read_byte(true)?;
+        match b {
             b if b == ACK => {
-                self.packet += 1;
+                (self.progress)(Progress::Packet(self.packet));
+                self.packet = self.packet.wrapping_add(1);
                 Ok(128)
             }
             b if b == NAK => Err(io::Error::new(
@@ -416,71 +426,5 @@ impl<T: io::Read + io::Write> Xmodem<T> {
     /// errors or EOF being reached.
     pub fn flush(&mut self) -> io::Result<()> {
         self.inner.flush()
-    }
-}
-
-enum TransmitState {
-    InProgress,
-    Done,
-}
-
-pub struct XmodemIo<W> {
-    io: W,
-    state: TransmitState,
-}
-
-impl<T> XmodemIo<T>
-where
-    T: io::Read + io::Write,
-{
-    pub fn new(io: T) -> XmodemIo<T> {
-        XmodemIo {
-            io,
-            state: TransmitState::InProgress,
-        }
-    }
-}
-
-impl<T> io::Write for XmodemIo<T>
-where
-    T: io::Read + io::Write,
-{
-    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        fn progress(progress: Progress) {
-            eprintln!("progress: {:?}", progress)
-        }
-
-        match self.state {
-            TransmitState::InProgress => {
-                let n = Xmodem::transmit_with_progress(buf, &mut self.io, progress)?;
-                self.state = TransmitState::Done;
-                Ok(n)
-            }
-            TransmitState::Done => Ok(0),
-        }
-    }
-
-    fn flush(&mut self) -> io::Result<()> {
-        Ok(())
-    }
-}
-
-impl<T> io::Read for XmodemIo<T>
-where
-    T: io::Read + io::Write,
-{
-    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        fn progress(progress: Progress) {
-            eprintln!("progress: {:?}", progress)
-        }
-
-        match self.state {
-            TransmitState::InProgress => {
-                let n = Xmodem::receive_with_progress(&mut self.io, buf, progress)?;
-                self.state = TransmitState::Done;
-                Ok(n)
-            }
-            TransmitState::Done => Ok(0),
-        }
     }
 }

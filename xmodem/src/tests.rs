@@ -251,29 +251,3 @@ fn test_eot() {
 
     assert_eq!(&buffer[..], &[NAK, EOT, NAK, EOT, ACK]);
 }
-
-#[test]
-fn test_io_write() {
-    use std::io::Write;
-
-    let mut input = [0u8; 256];
-    input[0] = CAN;
-
-    let (tx, rx) = pipe();
-    let tx_thread = std::thread::spawn(move || {
-        let rx = rx;
-        let mut writer = XmodemIo::new(rx);
-        writer.write(&input[..])
-    });
-    let rx_thread = std::thread::spawn(move || {
-        let mut output = [0u8; 256];
-        Xmodem::receive(tx, &mut output[..]).map(|_| output)
-    });
-
-    assert_eq!(
-        tx_thread.join().expect("tx join okay").expect("tx okay"),
-        256
-    );
-    let output = rx_thread.join().expect("rx join okay").expect("rx okay");
-    assert_eq!(&input[..], &output[..]);
-}

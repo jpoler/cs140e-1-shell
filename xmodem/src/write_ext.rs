@@ -12,7 +12,7 @@ pub trait WriteExt: io::Write {
                     buf = &tmp[n..];
                 }
                 Err(ref e) if e.kind() == io::ErrorKind::Interrupted => {}
-                Err(e) => panic!(e),
+                Err(e) => return Err(e),
             }
         }
 
