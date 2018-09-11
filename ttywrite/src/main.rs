@@ -4,11 +4,14 @@ extern crate xmodem;
 #[macro_use]
 extern crate structopt_derive;
 
-use std::{fs::File, io, path::PathBuf, time::Duration};
+use std::fs::File;
+use std::io::{self, Read, Write};
+use std::path::PathBuf;
+use std::time::Duration;
 
 use serial::core::{BaudRate, CharSize, FlowControl, SerialDevice, SerialPortSettings, StopBits};
 use structopt::StructOpt;
-use xmodem::XmodemIo;
+use xmodem::{Progress, Xmodem, DEBUG_BUFFER, DEBUG_BUFFER_OFFSET};
 
 mod parsers;
 
@@ -94,19 +97,9 @@ struct Tty {
 }
 
 impl Tty {
-    fn read(self) -> io::Result<()> {
+    fn read(mut self) -> io::Result<()> {
         let mut file;
         let mut stdout;
-        let mut serial;
-        let mut xmodem;
-
-        let mut reader: &mut io::Read = if self.raw {
-            serial = self.serial;
-            &mut serial
-        } else {
-            xmodem = XmodemIo::new(self.serial);
-            &mut xmodem
-        };
 
         let mut writer: &mut io::Write = if let Some(pathbuf) = self.input {
             file = File::create(pathbuf)?;
@@ -116,38 +109,50 @@ impl Tty {
             &mut stdout
         };
 
-        io::copy(&mut reader, &mut writer)?;
-        Ok(())
+        if self.raw {
+            io::copy(&mut self.serial, &mut writer)?;
+            Ok(())
+        } else {
+            fn progress(progress: Progress) {
+                println!("progress: {:?}", progress);
+            }
+            let buf = vec![];
+            let mut cursor = io::Cursor::new(buf);
+            let n = Xmodem::receive_with_progress(self.serial, &mut cursor, progress)?;
+            writer.write_all(&cursor.into_inner()[..n])?;
+            Ok(())
+        }
     }
 
-    fn write(self) -> io::Result<()> {
+    fn write(mut self) -> io::Result<()> {
         let mut file;
         let mut stdin;
-        let mut serial;
-        let mut xmodem;
 
         let mut reader: &mut io::Read = if let Some(pathbuf) = self.input {
-            file = File::create(pathbuf)?;
+            file = File::open(pathbuf)?;
             &mut file
         } else {
             stdin = io::stdin();
             &mut stdin
         };
 
-        let mut writer: &mut io::Write = if self.raw {
-            serial = self.serial;
-            &mut serial
+        if self.raw {
+            io::copy(&mut reader, &mut self.serial)?;
+            Ok(())
         } else {
-            xmodem = XmodemIo::new(self.serial);
-            &mut xmodem
-        };
+            fn progress(progress: Progress) {
+                println!("progress: {:?}", progress);
+            }
 
-        io::copy(&mut reader, &mut writer)?;
-        Ok(())
+            let mut buf = vec![];
+            reader.read_to_end(&mut buf)?;
+            Xmodem::transmit_with_progress(io::Cursor::new(buf), self.serial, progress)?;
+            Ok(())
+        }
     }
 }
 
-fn main() -> io::Result<()> {
+fn run() -> io::Result<()> {
     let opt = Opt::from_args();
 
     let mut serial = serial::open(&opt.tty_path).expect("path points to invalid TTY");
@@ -156,6 +161,7 @@ fn main() -> io::Result<()> {
     tty_settings.set_char_size(opt.char_width);
     tty_settings.set_stop_bits(opt.stop_bits);
     tty_settings.set_flow_control(opt.flow_control);
+    tty_settings.set_parity(serial::Parity::ParityNone);
     serial.write_settings(&tty_settings)?;
     serial.set_timeout(Duration::from_secs(opt.timeout))?;
 
@@ -165,11 +171,16 @@ fn main() -> io::Result<()> {
         raw: opt.raw,
     };
 
-    match opt.mode {
-        Mode::Read => tty.read().unwrap(),
-        Mode::Write => tty.write().unwrap(),
-    }
+    let res = match opt.mode {
+        Mode::Read => tty.read(),
+        Mode::Write => tty.write(),
+    };
+
     Ok(())
+}
+
+fn main() {
+    run().unwrap();
 }
 
 // fn read()
