@@ -5,13 +5,13 @@ extern crate xmodem;
 extern crate structopt_derive;
 
 use std::fs::File;
-use std::io::{self, Read, Write};
+use std::io;
 use std::path::PathBuf;
 use std::time::Duration;
 
 use serial::core::{BaudRate, CharSize, FlowControl, SerialDevice, SerialPortSettings, StopBits};
 use structopt::StructOpt;
-use xmodem::{Progress, Xmodem, DEBUG_BUFFER, DEBUG_BUFFER_OFFSET};
+use xmodem::{Progress, Xmodem};
 
 mod parsers;
 
@@ -171,9 +171,9 @@ fn run() -> io::Result<()> {
         raw: opt.raw,
     };
 
-    let res = match opt.mode {
-        Mode::Read => tty.read(),
-        Mode::Write => tty.write(),
+    match opt.mode {
+        Mode::Read => tty.read().unwrap(),
+        Mode::Write => tty.write().unwrap(),
     };
 
     Ok(())
